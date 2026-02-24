@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة الدخل والمصروفات</title>
+
+<style>
+  :root {
+    --bg:#f2f4f8; --card:#fff; --text:#000; --border:#ddd;
+  }
+  body.dark {
+    --bg:#121212; --card:#1e1e1e; --text:#f5f5f5; --border:#333;
+  }
+  body {
+    font-family: Arial;
+    direction: rtl;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 15px;
+    transition: 0.3s;
+  }
+  .container {
+    max-width: 700px;
+    margin: auto;
+    background: var(--card);
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,.1);
+  }
+  h2 { text-align: center; }
+  input, select, button {
+    width: 100%;
+    padding: 10px;
+    margin: 6px 0;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 16px;
+  }
+  button {
+    background: #4CAF50;
+    border: none;
+    color: white;
+    cursor: pointer;
+  }
+  .export { background:#2196F3; }
+  .darkbtn { background:#555; }
+
+  table {
+    width:100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 14px;
+  }
+  th, td {
+    border:1px solid var(--border);
+    padding:8px;
+    text-align:center;
+  }
+  th { background: rgba(0,0,0,.05); }
+
+  .income { color:#4CAF50; }
+  .expense { color:#e53935; }
+
+  .action {
+    cursor:pointer;
+    padding:4px 6px;
+    border-radius:4px;
+    color:white;
+  }
+  .edit { background:#FF9800; }
+  .delete { background:#e53935; }
+
+  .summary {
+    margin-top: 15px;
+    background: rgba(0,0,0,.04);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 16px;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h2>مصاريف الورشة</h2>
+
+  <input id="name" type="text" placeholder="الوصف">
+  <input id="amount" type="number" placeholder="المبلغ">
+  <input id="date" type="date">
+
+  <select id="type">
+    <option value="income">دخل</option>
+    <option value="expense">مصروف</option>
+  </select>
+
+  <button onclick="addOrUpdate()">💾 حفظ</button>
+  <button class="export" onclick="exportToExcel()">📥 تصدير Excel</button>
+  <button class="darkbtn" onclick="toggleDark()">🌙 الوضع الليلي</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>الوصف</th>
+        <th>النوع</th>
+        <th>المبلغ</th>
+        <th>التاريخ</th>
+        <th>إجراءات</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <div class="summary">
+    💰 الدخل: <span id="totalIncome" class="income">0</span><br>
+    💸 المصروفات: <span id="totalExpense" class="expense">0</span><br>
+    📊 الرصيد: <span id="balance">0</span>
+  </div>
+</div>
+
+<script>
+  let records = JSON.parse(localStorage.getItem("records")) || [];
+  let editIndex = null;
+
+  const nameInput = document.getElementById("name");
+  const amountInput = document.getElementById("amount");
+  const typeInput = document.getElementById("type");
+  const dateInput = document.getElementById("date");
+
+  // تاريخ اليوم افتراضي
+  dateInput.valueAsDate = new Date();
+
+  if (localStorage.getItem("dark") === "on")
+    document.body.classList.add("dark");
+
+  function save() {
+    localStorage.setItem("records", JSON.stringify(records));
+  }
+
+  function render() {
+    const body = document.getElementById("tableBody");
+    body.innerHTML = "";
+    let income = 0, expense = 0;
+
+    records.forEach((r, i) => {
+      r.type === "income" ? income += r.amount : expense += r.amount;
+
+      body.innerHTML += `
+        <tr>
+          <td>${r.name}</td>
+          <td class="${r.type}">${r.type === "income" ? "دخل" : "مصروف"}</td>
+          <td>${r.amount}</td>
+          <td>${r.date}</td>
+          <td>
+            <span class="action edit" onclick="edit(${i})">✏️</span>
+            <span class="action delete" onclick="del(${i})">🗑</span>
+          </td>
+        </tr>`;
+    });
+
+    document.getElementById("totalIncome").innerText = income;
+    document.getElementById("totalExpense").innerText = expense;
+    document.getElementById("balance").innerText = income - expense;
+    save();
+  }
+
+  function addOrUpdate() {
+    const name = nameInput.value;
+    const amount = parseFloat(amountInput.value);
+    const type = typeInput.value;
+    const date = dateInput.value;
+
+    if (!name || isNaN(amount) || !date)
+      return alert("أدخل جميع البيانات");
+
+    if (editIndex === null) {
+      records.push({ name, amount, type, date });
+    } else {
+      records[editIndex] = { name, amount, type, date };
+      editIndex = null;
+    }
+
+    nameInput.value = "";
+    amountInput.value = "";
+    dateInput.valueAsDate = new Date();
+    render();
+  }
+
+  function edit(i) {
+    const r = records[i];
+    nameInput.value = r.name;
+    amountInput.value = r.amount;
+    typeInput.value = r.type;
+    dateInput.value = r.date;
+    editIndex = i;
+  }
+
+  function del(i) {
+    if (confirm("هل تريد حذف السجل؟")) {
+      records.splice(i, 1);
+      render();
+    }
+  }
+
+  function toggleDark() {
+    document.body.classList.toggle("dark");
+    localStorage.setItem("dark",
+      document.body.classList.contains("dark") ? "on" : "off");
+  }
+
+  function exportToExcel() {
+    let table = document.querySelector("table").outerHTML;
+    let html = `<html><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
+    let blob = new Blob([html], {type:"application/vnd.ms-excel"});
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "finance.xls";
+    a.click();
+  }
+
+  render();
+</script>
+
+</body>
+</html>
