@@ -1,7 +1,7 @@
 {
   "name": "مصاريف الورشة",
-  "short_name": "مصروفاتي",
-  "start_url": "index. html",
+  "short_name": "مصاريف الورشة",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4CAF50",
